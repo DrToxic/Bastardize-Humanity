@@ -2,7 +2,7 @@
 If debug = True Print "LOADING CONFIG"
 
 ;Load options from a fixed Width config file.
-
+SeedRnd MilliSecs()
 ;Defaults, if the config file fails.
 mainWidth	= 640
 mainHeight	= 480

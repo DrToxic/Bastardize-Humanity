@@ -7,6 +7,7 @@ If debug = True Print "LOADING CONFIG"
 mainWidth	= 640
 mainHeight	= 480
 serverPort	= 40000
+aiPlayer$	= "Rando Cardrissian"
 ;----------------------------------
 
 config = ReadFile("Config.cfg")
@@ -21,9 +22,10 @@ Else
 
 	Select Upper(Left(temp$,10));First 10 characters are the OPTION Code.
 		;Config Filters -- try to Load these from the file.
-		Case "WIDTH     " mainWidth = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: WIDTH     "+mainWidth
-		Case "HEIGHT    " mainHeight = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: HEIGHT    "+mainHeight
+		Case "WIDTH     " mainWidth = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: WIDTH      = "+mainWidth
+		Case "HEIGHT    " mainHeight = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: HEIGHT     = "+mainHeight
 		Case "SERVERPORT" serverPort% = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: SERVERPORT = "+serverPort%
+		Case "AIPLAYER  " aiPlayer$ = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: AIPLAYER   = "+aiName$
 		;---------------------------------------------
 		
 		;If we find anything we can't use... ignore it.
