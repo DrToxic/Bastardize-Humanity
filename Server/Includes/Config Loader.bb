@@ -6,6 +6,9 @@ If debug = True Print "LOADING CONFIG"
 ;Defaults, if the config file fails.
 mainWidth	= 640
 mainHeight	= 480
+chatWidth	= 640
+chatHeight	= 360
+bastardmode = 0
 serverPort	= 40000
 aiPlayer$	= "Rando Cardrissian"
 ;----------------------------------
@@ -26,6 +29,8 @@ Else
 		Case "HEIGHT    " mainHeight = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: HEIGHT     = "+mainHeight
 		Case "SERVERPORT" serverPort% = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: SERVERPORT = "+serverPort%
 		Case "AIPLAYER  " aiPlayer$ = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: AIPLAYER   = "+aiName$
+		Case "NSFW      " bastardmode = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: NSFW       = "+bastardMode
+
 		;---------------------------------------------
 		
 		;If we find anything we can't use... ignore it.

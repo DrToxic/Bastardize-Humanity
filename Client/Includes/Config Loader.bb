@@ -4,8 +4,12 @@ If debug = True Print "LOADING CONFIG"
 ;Load options from a fixed Width config file.
 SeedRnd MilliSecs()
 ;Defaults, if the config file fails.
+AppTitle = "Cards against Humanity - Network Edition"
 mainWidth	= 640
 mainHeight	= 480
+chatWidth	= 640
+chatHeight	= 360
+bastardmode = 0
 serverIP$	= "127.0.0.1"
 serverPort%	= 40000
 playername$ = Rand(0,2)
@@ -36,14 +40,15 @@ Else
 		Case "PLAYERNAME" playername$ = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: PLAYERNAME = "+playername$
 		Case "SERVERIP  " serverIP$ = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: SERVERIP   = "+serverIP$
 		Case "SERVERPORT" serverPort% = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: SERVERPORT = "+serverPort%
+		Case "NSFW      " bastardmode = Mid$(temp$,13)	: If debug = True Then Print "LOADING CONFIG: using line: NSFW       = "+bastardMode
 		;---------------------------------------------
-		
 		;If we find anything we can't use... ignore it.
 		Default If debug = True Print "LOADING CONFIG: trash line: "+temp$
 		;Yes, that's how we deal with human-readable headers.
 	End Select
+
 	Wend
-	
+
 	If debug = True Then
 		Print "CONFIG LOADED!"
 	EndIf

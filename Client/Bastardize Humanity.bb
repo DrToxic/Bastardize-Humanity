@@ -1,6 +1,9 @@
-If CommandLine$() = "/debug" Then debug = True
+If CommandLine$() = "/debug" Then debug = True 
 Include "includes\config loader.bb"
-Include "includes\windows menus.bb"
+
+Include "includes\mainWindow.bb"
+Include "includes\chatWindow.bb"
+
 timer = CreateTimer(25)
 
 
@@ -64,38 +67,46 @@ If MenuChecked(connect) Then
 		codeOne$ = Upper(Mid$(message$,1,3))
 		codeTwo$ = Upper(Mid$(message$,4,3))
 		
-		If debug = True Then
-			Print "Received a message. "+message$
-			Print "Trying initial code: "+codeOne$+" and second code: "+codeTwo$
-		EndIf
+		If debug = True Then Print "Received a message. "+message$
 		
 		;checks if is a message from the server
 		Select codeOne$
 			Case "SVR"
+				If debug = True Then Print "Got SerVeR code."+codeOne$
 			;select the second part of the header
 				Select codeTwo$
 				
 					Case "_ID"
 						;our unique ID for the session.
 						client_stream = Mid$(message$,7)
-						If debug = True Then Print "client_stream = " + client_stream
+						If debug = True Then Print "Got client_stream: " + client_stream
 					
 					Case "BYE"
 						;server disconnected !
-						Notify "The server has disconnected: "+Mid$(message$,7)
+						CloseTCPStream(strmClient)
 						UncheckMenu(connect) : UpdateWindowMenu (mainWindow)
 						SetStatusText(mainWindow, "Server closed connection - Disconnected")
-						CloseTCPStream(strmClient)
-						
+						Notify "The server has disconnected: "+Mid$(message$,7)
+
 					Case "NEW"
-						AddGadgetItem(playerList,Mid$(message$,7))
-						If debug = True Then Print "Someone new has joined or updated their name. we have their name."
+						If debug = True Then Print "Creating player list. "+Mid$(message$,8)
+						Select Mid$(message$,7,1)
+							Case 1
+								AddGadgetItem(playerList1,Mid$(message$,8))
+							Case 2
+								AddGadgetItem(playerList2,Mid$(message$,8))
+							Case 3
+								AddGadgetItem(playerList3,Mid$(message$,8))
+						End Select
 	
 					Case "CLR"
 						If debug = True Then Print "Clearing player list. Receiving new list!"
-						While Not CountGadgetItems(playerList) = 0
-							RemoveGadgetItem(playerList,0)
-						Wend
+						If CountGadgetItems(playerList1) > 0 Then ClearGadgetItems(playerList1)
+						If CountGadgetItems(playerList2) > 0 Then ClearGadgetItems(playerList2)
+						If CountGadgetItems(playerList3) > 0 Then ClearGadgetItems(playerList3)
+
+					Case "DIS"
+						If debug = True Then Print Mid$(message$,7)+" has disconnected from the session."
 					Default
 				End Select
 

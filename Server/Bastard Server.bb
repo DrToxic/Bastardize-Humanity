@@ -6,10 +6,9 @@ If CommandLine$() = "/debug" Then debug = True
 Include "includes\config loader.bb"
 AppTitle "Bastard Server"
 Type client
-	Field uid$
 	Field stream
 	Field name$
-	Field ready ; -1 = NOT AVAILABLE 0 = NOT READY ; 1 = READY ; 2 = SPECTATE
+	Field ready ; 0 = NOT AVAILABLE 1 = NOT READY ; 2 = READY ; 3 = SPECTATE
 	Field points% ; Cards Against Humanity: Awesome Points
 	Field card0$ ; player cards.
 	Field card1$ ; Keeping these stored server side.
@@ -43,7 +42,8 @@ randoScore = 0
 
 timer = CreateTimer(25)
 
-Include "includes\windows menus.bb"
+Include "includes\mainWindow.bb"
+Include "includes\chatWindow.bb"
 
 Repeat
 	Select WaitEvent()
@@ -56,8 +56,18 @@ Repeat
 
 		Case $401
 			Select EventSource() ;buttons
-				Case playerList
-					SetStatusText(mainWindow, SelectedGadgetItem(playerList)+": "+GadgetItemText$(playerList,SelectedGadgetItem(playerList)))
+				Case playerList1
+					SetStatusText(chatWindow, "Player: "+SelectedGadgetItem(playerList1)+": "+GadgetItemText$(playerList1,SelectedGadgetItem(playerList1))+" ("+GadgetItemText$(playerList2,SelectedGadgetItem(playerList1))+"): "+GadgetItemText$(playerList3,SelectedGadgetItem(playerList1))+" Awesome points")
+					SelectGadgetItem(playerList2,SelectedGadgetItem(playerList1))
+					SelectGadgetItem(playerList3,SelectedGadgetItem(playerList1))
+				Case playerList2
+					SetStatusText(chatWindow, "Player: "+SelectedGadgetItem(playerList2)+": "+GadgetItemText$(playerList1,SelectedGadgetItem(playerList2))+" ("+GadgetItemText$(playerList2,SelectedGadgetItem(playerList2))+"): "+GadgetItemText$(playerList3,SelectedGadgetItem(playerList2))+" Awesome points")
+					SelectGadgetItem(playerList1,SelectedGadgetItem(playerList2))
+					SelectGadgetItem(playerList3,SelectedGadgetItem(playerList2))
+				Case playerList3
+					SetStatusText(chatWindow, "Player: "+SelectedGadgetItem(playerList3)+": "+GadgetItemText$(playerList1,SelectedGadgetItem(playerList3))+" ("+GadgetItemText$(playerList2,SelectedGadgetItem(playerList3))+"): "+GadgetItemText$(playerList3,SelectedGadgetItem(playerList3))+" Awesome points")
+					SelectGadgetItem(playerList1,SelectedGadgetItem(playerList3))
+					SelectGadgetItem(playerList2,SelectedGadgetItem(playerList3))
 				Default
 			End Select
 
@@ -68,7 +78,7 @@ Repeat
 					Exit
 			End Select
 
-		Case $1001 ; menu items from includes\windows.bb
+		Case $1001 ; menu items
 			Select EventData()
 
 				Case 1
@@ -104,9 +114,8 @@ Repeat
 If MenuChecked(svrRun) = True Then
 ;;;;;;;;;;;;;;;Reading messages from network;;;;;;;;;;;;;
 	message$ = "" ;prepare to get a message
-;	received_stream = ""
-	
-	
+
+
 ;;;;;;;;;;;;;;;Accept new connection
 	strStream = AcceptTCPStream(svrGame)
 	If strStream Then
@@ -114,8 +123,8 @@ If MenuChecked(svrRun) = True Then
 		;reads info from the client just connected (see tcp_client.bb)
 		If ReadAvail(strStream) Then message$ = ReadLine$(strstream)
 	EndIf
-	
-	
+
+
 	;;;;;;;;;;;Existing clients
 	For c.client = Each client
 		If ReadAvail(c\stream) Then
@@ -125,39 +134,52 @@ If MenuChecked(svrRun) = True Then
 			Exit
 		EndIf
 	Next
-	
+
 	If message$ <> 0 Then					;If we recieved a message
 		header$ = Mid$(message$,1,3)		;Find out what to do with it using the 3 character header code
-	
+
 		Select header$
-			Case "UID" ;we receive a username
-;			Stop
-			players = 0
+			Case "UID" ;we receive a Client ID
+				clientFound = False
 				c.client = First client
 				For c.client = Each client
-					If debug = True Then Print "Checking client "+players+" for details..."
-					If Not c\stream = 0 Then
-						If debug = True Then Print "Client in use. checking for next...
-						players = players + 1
+					If Mid$(message$,4) = c\name$ Then ;client exists. Set their new StreamID, Set them to "not ready" and continue.
+						c\stream = strstream
+						c\ready = 1
+						clientFound = True
+						If debug = True Then Print "Client has returned!"
 					EndIf
 				Next
-				If debug = True Then Print "Creating new client (Received UID: "+Mid(message$,4)+")"
-				the_user$ = Mid(message$,4)
-				c.client = New client
-				c\name$ = the_user$ : c\stream = strstream : c\ready = 0
-				WriteLine c\stream, "SVR_ID" + c\stream
+				If clientFound = False Then ;the client doesn't yet exist. make one.
+					If debug = True Then Print "Creating new client (Received UID: "+Mid$(message$,4)+")"
+	
+					the_user$ = Mid$(message$,4)
+					c.client = New client
+					c\name$ = the_user$ : c\stream = strstream : c\ready = 1
+					WriteLine c\stream, "SVR_ID" + c\stream
+				EndIf
 				updatePlayers(c.client)
+
+
+			Case "_ID"
+
 
 			Case "MSG"
 				msg_new$ = the_user$+","+Mid$(message$,4)
 				send_message (msg_new$)
 
 			Case "PLY" ; A game Control message.
-				
+			
 
 			Case "BYE"
+				If debug = True Then Print the_user$+" has disconnected. Disabling client..."
 				msg_new$ = the_user$+" has disconnected!"
-				send_message(msg_new$)
+				c.client = First client
+					For c.client = Each client
+						If c\stream = received_stream Then c\ready = 0
+					Next
+				send_message("SVRDIS"+the_user$)
+				updatePlayers(c.client)
 			Default
 				;debug = True Then Print "Received nonsense. What is "+header$+"?"
 		End Select
@@ -185,7 +207,7 @@ Function send_message(msg_new$)
 	If received_stream <> 0 Then
 
 	EndIf
-	
+
 	;notifyes the message to all the logged clients, but the sender
 	c.client = First client
 
@@ -200,24 +222,34 @@ End Function
 
 Function updatePlayers(c.client)
 
-Notify CountGadgetItems(playerList)
+;	Notify CountGadgetItems(playerList)
 
-While Not CountGadgetItems(playerList) = 0
-
-	RemoveGadgetItem(playerList,0)
-
-Wend
-
+	If CountGadgetItems(playerList1) > 0 Then ClearGadgetItems(playerList1)
+	If CountGadgetItems(playerList2) > 0 Then ClearGadgetItems(playerList2)
+	If CountGadgetItems(playerList3) > 0 Then ClearGadgetItems(playerList3)
 	Dim player$(players+5)
 
 	c.client = First client
 	players = 0
 	For c.client = Each client
-		player$(players) = c\name$
-		AddGadgetItem(playerList,c\name$)
-		If debug = True Then Print "Processed: "+ player$(players)
+		AddGadgetItem(playerList1,c\name$)
+		Select c\ready
+			Case 0
+				AddGadgetItem(playerList2,"Disconnected")
+			Case 1
+				AddGadgetItem(playerList2,"Not Ready")
+			Case 2
+				AddGadgetItem(playerList2,"Ready")
+			Case 3
+				AddGadgetItem(playerList2,"Spectating")
+		End Select
+		AddGadgetItem(playerList3,c\points%)
+		player$(players) = c\ready+c\name$
 		players = players + 1
 	Next
+
+
+	If debug = True Then Print "Processed: "+ player$(players)
 
 	If debug = True Then
 		Print "List of players:"
@@ -225,7 +257,7 @@ Wend
 			Print player$(i)
 		Next
 	EndIf
-	
+
 	c.client = First client
 
 	For c.client = Each client
