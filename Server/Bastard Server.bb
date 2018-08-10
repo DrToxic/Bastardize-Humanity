@@ -1,8 +1,8 @@
 ;Enable debugging to console window.
 Global debug = False
 If CommandLine$() = "/debug" Then debug = True
-
 ;configure the variables.
+Global cfgFile$ = CurrentDir$()+"Config.cfg"
 Include "includes\config loader.bb"
 AppTitle "Bastard Server"
 Type client
@@ -45,6 +45,16 @@ timer = CreateTimer(25)
 Include "includes\mainWindow.bb"
 Include "includes\chatWindow.bb"
 
+If startOnRun = 1 Then
+	If svrGame <>0 Then
+		SetStatusText(mainWindow,"Server is running")
+		If debug = True Then Print "Server started successfully"
+	Else
+		SetStatusText(mainWindow,"Server failed to start, Is TCP port "+serverPort+" in use?")
+		If debug = True Then Print "Server could not start on port "+serverPort+"."
+	EndIf
+EndIf
+
 Repeat
 	Select WaitEvent()
 		Case $101 ; keydown
@@ -75,6 +85,7 @@ Repeat
 			Select EventSource()
 				Default 
 					If svrGame <>0 Then serverBYE()
+					If MenuChecked(save) Then saveCFG()
 					Exit
 			End Select
 
@@ -83,12 +94,15 @@ Repeat
 
 				Case 1
 					If MenuChecked(svrRun) = False Then
-						If debug = True Print "Attempt to start server"
 						svrGame = CreateTCPServer(serverPort)
 						If svrGame <>0 Then
 							SetStatusText(mainWindow,"Server is running")
+							CheckMenu(svrRun)
+							If debug = True Then Print "Server started successfully"
+						Else
+							SetStatusText(mainWindow,"Server failed to start, Is TCP port "+serverPort+" in use?")
+							If debug = True Then Print "Server could not start on port "+serverPort+"."
 						EndIf
-						CheckMenu(svrRun)
 					ElseIf MenuChecked(svrRun) = True Then
 						serverBYE()
 						SetStatusText(mainWindow,"Server is Stopped")
@@ -96,12 +110,47 @@ Repeat
 					EndIf
 					UpdateWindowMenu(mainWindow)
 
-				Case 2 
-						c.client = First client
-						For c.client = Each client
-							WriteLine c\stream,"SVRBYE"
-						Next
+				Case 2
+					If MenuChecked(save) = True Then
+						If FileType(cfgFile$) = 1 Then
+							Select Proceed("Disabling configuration, Would you also like to delete it?",1)
+								Case -1
+									If debug = True Then Print "Erm... okay. Keeping persistance file enabled."
+								Case 0
+									CopyFile(cfgFile$,CurrentDir$()+"Config.old.cfg")
+									DeleteFile(cfgFile$)
+									If debug = True Then Print "Persistance file renamed."+Chr$(13)+"New file name: "+CurrentDir$()+"Config.old.cfg"
+									UncheckMenu(save)
+								Case 1
+									If FileType(cfgFile$) = 1 Then DeleteFile(cfgFile$)
+									If FileType(cfgFile$) = 1 Then
+										Notify "Could not delete file."+Chr$(13)+cfgFile$
+										If debug = True Then Print "could not delete: "+cfgFile$
+									ElseIf FileType(cfgFile$) = 0 Then
+										If debug = True Then Print "Persistance disabled and deleted"
+									EndIf
+									UncheckMenu(save)
+							End Select
+						EndIf
+					Else
+						Select Proceed("Enabling persistance, Would you like to check for an existing file?"+Chr$(13)+"This will save a .cfg file in the server directory.",0) 
 
+							Case 0
+								saveCFG()
+								CheckMenu(save)
+							Case 1
+								If FileType(CurrentDir$()+"Config.old.cfg") = 1 Then
+									CopyFile(CurrentDir$()+"Config.old.cfg",cfgFile$)
+									DeleteFile(CurrentDir$()+"Config.old.cfg")
+								Else
+									Notify "Old config not found. Writing new config."
+									saveCFG()
+								EndIf
+							CheckMenu(save)
+							If debug = True Then Print "Persistance enabled!"
+						End Select
+					EndIf
+					UpdateWindowMenu(mainWindow)
 
 				Default
 			End Select
@@ -136,7 +185,7 @@ If MenuChecked(svrRun) = True Then
 	Next
 
 	If message$ <> 0 Then					;If we recieved a message
-		header$ = Mid$(message$,1,3)		;Find out what to do with it using the 3 character header code
+		header$ = Left$(message$,3)			;Find out what to do with it using the 3 character header code
 
 		Select header$
 			Case "UID" ;we receive a Client ID
@@ -159,9 +208,6 @@ If MenuChecked(svrRun) = True Then
 					WriteLine c\stream, "SVR_ID" + c\stream
 				EndIf
 				updatePlayers(c.client)
-
-
-			Case "_ID"
 
 
 			Case "MSG"
@@ -268,4 +314,27 @@ Function updatePlayers(c.client)
 		Next
 	Next
 
+End Function
+
+Function saveCFG()
+
+	If debug = True Then Print "SAVING CONFIG..."
+
+	If FileType(cfgFile$) = 1 Then
+		CopyFile(cfgFile$,CurrentDir$()+"Config.backup.cfg")
+		DeleteFile(cfgFile$)
+	EndIf
+
+	writeOut = WriteFile(cfgFile$)
+		WriteLine(writeOut,"----------=----------------")
+		WriteLine(writeOut,"OPTION    = SETTING        ")
+		WriteLine(writeOut,"----------=----------------")
+		WriteLine(writeOut,"Width     = "+GadgetWidth(mainWindow))
+		WriteLine(writeOut,"Height    = "+GadgetHeight(mainWindow))
+		WriteLine(writeOut,"ServerPort= "+serverPort%)
+		WriteLine(writeOut,"aiPlayer  = "+aiPlayer$)
+		WriteLine(writeOut,"StartOnRun= "+startOnRun)
+		WriteLine(writeOut,"NSFW      = "+NSFW)
+		WriteLine(writeOut,"----------=----------------")
+	CloseFile(writeOut)
 End Function

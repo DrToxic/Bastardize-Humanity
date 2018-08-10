@@ -1,5 +1,5 @@
 If debug = True Then
-	Print "Creating main window: "+mainWidth+", "+mainHeight
+	Print "Creating chat window: "+mainWidth+", "+mainHeight
 	Print "Using desktop width and height: "+ClientWidth(Desktop())+", "+ClientHeight(Desktop())
 EndIf
 
